@@ -6,9 +6,10 @@ export class OrdersItems{
     @PrimaryGeneratedColumn('uuid')
     id : string;
 
-    @Column({ type: 'decimal', precision: 10, scale: 2 })
+    @Column({ type: 'int' })
     quantity : number;
 
+    @Column({ type: 'varchar' })
     productId: string;
 
     @Column({ type: 'decimal', precision: 10, scale: 2 })

@@ -9,7 +9,8 @@ import { envs } from 'src/config';
 import { PRODUCT_SERVICE } from 'src/config/service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([orders , OrdersItems]) , ClientsModule.register([
+  imports: [TypeOrmModule.forFeature([orders , OrdersItems]) , 
+  ClientsModule.register([
     {
       name: PRODUCT_SERVICE,
       transport: Transport.TCP,
