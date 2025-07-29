@@ -50,7 +50,6 @@ export class OrdersService implements OnModuleInit {
     try {
       //1. Validar que los productos existen
       const productIds = createOrderDto.items.map((item) => item.productId);
-      this.logger.log(`Validando productos con IDs: ${productIds}`);
       const products: any[] = await firstValueFrom(
         this.productServiceClient.send({ cmd: 'validateproduct' }, productIds),
       );
@@ -72,36 +71,34 @@ export class OrdersService implements OnModuleInit {
         0,
       );
 
-      //3. Crear la orden o una transaccion de bases de datos
+      //3. Crear la orden primero
+      const order = this.ordersRepository.create({
+        total: totalAmount,
+        totalItems: totalItems,
+      });
+
+      // Guardar la orden para obtener el ID
+      const savedOrder = await this.ordersRepository.save(order);
+
+      // Crear los items con la referencia a la orden guardada
       const orderItems = createOrderDto.items.map((item) => {
-        const product = products.find(
-          (product) => product.id === item.productId,
-        );
+        const product = products.find((product) => product.id === item.productId);
         return this.ordersItemsRepository.create({
           quantity: item.quantity,
           productId: item.productId,
           price: product ? product.price : 0,
+          orders: savedOrder, // Establecer la relación con la orden
         });
       });
-      const order = this.ordersRepository.create({
-        total: totalAmount,
-        totalItems: totalItems,
-        OrdersItems: createOrderDto.items.map((OrdersItems) => ({
-          price: products.find((product) => product.id === OrdersItems.productId).price,
-          productId: OrdersItems.productId,
-          quantity: OrdersItems.quantity,
-        })),
 
-      });
-      // Save order and its items in a transaction
-      const savedOrder = await this.ordersRepository.save(order);
-      await this.ordersItemsRepository.save(orderItems);
+      // Guardar los items
+      const savedItems = await this.ordersItemsRepository.save(orderItems);
       
       return {
         message: 'Orden creada correctamente',
         orders: {
           ...savedOrder,
-          OrdersItems: savedOrder.OrdersItems.map((orderItem) => {
+          OrdersItems: savedItems.map((orderItem) => {
             const product = products.find(p => p.id === orderItem.productId);
             return {
               ...orderItem,
@@ -153,20 +150,83 @@ export class OrdersService implements OnModuleInit {
   }
 
   async findOne(id: string) {
-    const order = await this.ordersRepository.findOne({ where: { id } });
-    if (!order) {
+    try {
+      const order = await this.ordersRepository.findOne({
+        where: { id },
+        relations: ['OrdersItems'],
+        select: {
+          id: true,
+          total: true,
+          status: true,
+          totalItems: true,
+          paid: true,
+          paidAt: true,
+          createdAt: true,
+          updatedAt: true,
+          OrdersItems: {
+            id: true,
+            quantity: true,
+            productId: true,
+            price: true,
+          }
+        }
+      });
+      
+      if (!order) {
+        throw new RpcException({
+          status: HttpStatus.NOT_FOUND,
+          message: `Orden con ID ${id} no encontrada`,
+        });
+      }
+
+      // Verificar si la orden tiene items
+      if (!order.OrdersItems || order.OrdersItems.length === 0) {
+        // Buscar items directamente usando el orderId
+        const orderItems = await this.ordersItemsRepository
+          .createQueryBuilder('orderItem')
+          .where('orderItem.orderId = :orderId', { orderId: id })
+          .getMany();
+          
+        if (orderItems.length === 0) {
+          return {
+            message: 'Orden encontrada sin items',
+            order: {
+              ...order,
+              OrdersItems: []
+            }
+          };
+        }
+        
+        order.OrdersItems = orderItems;
+      }
+
+      const productIds = order.OrdersItems.map((item) => item.productId);
+      // this.logger.log(`Validando productos con IDs: ${productIds}`);
+      const products: any[] = await firstValueFrom(
+        this.productServiceClient.send({ cmd: 'validateproduct' }, productIds),
+      );
+      
+      return {
+        message: 'Orden encontrada',
+        order: {
+          ...order,
+          OrdersItems: order.OrdersItems.map((ordersitems) => {
+            const product = products.find((product) => product.id === ordersitems.productId);
+            return {
+              ...ordersitems,
+              name: product ? product.name : 'Producto no encontrado'
+            };
+          })
+        }
+      };
+    } catch (error) {
+      this.logger.error(`Error al buscar la orden con ID ${id}:`, error);
       throw new RpcException({
         status: HttpStatus.NOT_FOUND,
         message: `Orden con ID ${id} no encontrada`,
       });
     }
-    return {
-      message: 'Orden encontrada',
-      order: order,
-    };
   }
-
-  // ...existing code...
   async changeStatus(changeOrderStatusDto: ChangeOrderStatusDto) {
     try {
       const { id, status } = changeOrderStatusDto;
@@ -201,6 +261,8 @@ export class OrdersService implements OnModuleInit {
       });
     }
   }
+  
+
   // ...existing code...
 
   update(id: string, updateOrderDto: UpdateOrderDto) {
