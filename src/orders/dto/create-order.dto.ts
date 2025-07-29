@@ -27,10 +27,11 @@ export class CreateOrderDto {
     // paid : boolean = false;
 
     // esto es una evolucion del proyecto
-
+    // esta es una refactorizacion de los dto
     @IsArray()
     @ArrayMinSize(1)
     @ValidateNested({each: true})
     @Type(() => OrdersItemsDto)
     items : OrdersItemsDto[]
+
 }

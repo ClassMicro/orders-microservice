@@ -15,7 +15,15 @@ export class OrdersService {
   constructor(
     @Inject(PRODUCT_SERVICE) private readonly productServiceClient: ClientProxy,
     @InjectRepository(orders) private readonly ordersRepository: Repository<orders>) {}
+
   async create(createOrderDto: CreateOrderDto) {
+    
+    // return{
+    //   service :'orders microsiervice',
+    //   createOrderDto: createOrderDto,
+
+    // }
+
     try {
       // aqui llegamos a nuestro microservico de productos con la validacion de los de cmd
       const products = await this.productServiceClient.send(
