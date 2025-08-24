@@ -16,18 +16,15 @@ import { OrdersPaginationDto } from './dto/ordersd-pagination.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { ChangeOrderStatusDto } from './dto/change-ordres.dto';
 import { OrderStatus } from './enum/status';
-import { PRODUCT_SERVICE } from 'src/config/service';
-import { firstValueFrom, timeout, catchError } from 'rxjs';
-import { of } from 'rxjs';
-import { any } from 'joi';
-import { totalmem } from 'os';
+import { NAST_SERVICE } from 'src/config/service';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
   private readonly logger = new Logger(OrdersService.name);
 
   constructor(
-    @Inject(PRODUCT_SERVICE) private readonly productServiceClient: ClientProxy,
+    @Inject( NAST_SERVICE) private readonly clients: ClientProxy,
     @InjectRepository(orders)
     private readonly ordersRepository: Repository<orders>,
     @InjectRepository(OrdersItems)
@@ -36,7 +33,7 @@ export class OrdersService implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      await this.productServiceClient.connect();
+      await this.clients.connect();
       this.logger.log('Conexión establecida con el servicio de productos');
     } catch (error) {
       this.logger.error(
@@ -51,7 +48,7 @@ export class OrdersService implements OnModuleInit {
       //1. Validar que los productos existen
       const productIds = createOrderDto.items.map((item) => item.productId);
       const products: any[] = await firstValueFrom(
-        this.productServiceClient.send({ cmd: 'validateproduct' }, productIds),
+        this.clients.send({ cmd: 'validateproduct' }, productIds),
       );
       //2. calcuar el total de la orden
       const totalAmount = createOrderDto.items.reduce((acc, ordersitems) => {
@@ -203,7 +200,7 @@ export class OrdersService implements OnModuleInit {
       const productIds = order.OrdersItems.map((item) => item.productId);
       // this.logger.log(`Validando productos con IDs: ${productIds}`);
       const products: any[] = await firstValueFrom(
-        this.productServiceClient.send({ cmd: 'validateproduct' }, productIds),
+        this.clients.send({ cmd: 'validateproduct' }, productIds),
       );
       
       return {

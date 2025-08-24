@@ -6,11 +6,13 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 
 async function bootstrap() {
   const logger = new Logger('orders-main')
+  logger.log(`Microservicio de órdenes iniciado en ${envs.nastServer}`);
   // implementamos los microservicios de ordenes para conectar con nuestro gateway por tcp en el transport
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule ,{
-    transport: Transport.TCP,
+    transport: Transport.NATS,
     options: {
-      port: envs.port
+      // port: envs.port,
+      servers: envs.nastServer,
     },
   });
   app.useGlobalPipes(

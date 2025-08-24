@@ -4,22 +4,12 @@ import { OrdersController } from './orders.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { orders } from './entity/orders.entity';
 import { OrdersItems } from './entity/orders-items.entity';
-import { ClientsModule, Transport } from '@nestjs/microservices';
-import { envs } from 'src/config';
-import { PRODUCT_SERVICE } from 'src/config/service';
+import { NatsModule } from 'src/transports/nats.module';
 
 @Module({
   imports: [TypeOrmModule.forFeature([orders , OrdersItems]) , 
-  ClientsModule.register([
-    {
-      name: PRODUCT_SERVICE,
-      transport: Transport.TCP,
-      options: {
-        host: envs.productMicroserviceHost,
-        port: envs.productMicroservicePort,
-      },
-    },
-  ])],
+  NatsModule
+  ],
   controllers: [OrdersController],
   providers: [OrdersService],
 })
