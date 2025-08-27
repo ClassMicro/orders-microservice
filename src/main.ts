@@ -14,7 +14,8 @@ async function bootstrap() {
       // port: envs.port,
       servers: envs.nastServer,
     },
-  });
+  },
+);
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
